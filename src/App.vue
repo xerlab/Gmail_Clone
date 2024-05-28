@@ -4,9 +4,10 @@ import Topmenu from './components/Topmenu.vue'
 import LeftNavbar from './components/LeftNavbar.vue'
 import RightMenu from './components/RightMenu.vue'
 import compose from './components/compose.vue';
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import Middle_area from './components/Middle_area.vue'
-const scrolling = ref(false)
+
+
 </script>
 
 <template>

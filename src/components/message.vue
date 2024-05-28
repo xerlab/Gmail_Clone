@@ -1,52 +1,102 @@
 <template>
   <div @mouseenter="hovered = true" @mouseleave="hovered = false"
-    class="hover:shadow-md flex items-center gap-3 px-2 border-b">
-    <div class="flex items-center gap-2 justify-center">
-      <div class="flex items-center justify-center p-2.5 rounded-full hover:bg-gray-100 ">
-        <Icon icon="mdi:check-box-outline-blank" style="font-size: 1.25rem;"
-          :style="hovered ? 'color: #5F6368;' : 'color:#BFBFBF;'" />
+    class="hover:shadow-md flex items-center gap-3 px-2 border-b "
+    :class="[Read ? 'bg-[#F2F6FC]' : '', true ? 'bg-blue-100' : '']">
+    <div class=" flex items-center justify-center">
+      <div class="flex items-center justify-center p-2.5 rounded-full "
+        :class="Read ? 'hover:bg-gray-200' : 'hover:bg-gray-100'">
+        <Icon :icon="true ? 'mdi:checkbox-outline' : 'mdi:check-box-outline-blank'" style="font-size: 1.25rem;"
+          :style="hovered || true ? 'color: #5F6368;' : 'color:#BFBFBF;'" />
       </div>
-      <div class="flex items-center justify-center p-2.5 rounded-full hover:bg-gray-100 ">
-        <Icon icon="mdi:star-outline" style=" font-size: 1.25rem;"
-          :style="hovered ? 'color: #5F6368;' : 'color:#BFBFBF;'" />
+      <div @click="toggleState('Star', Star)" class="flex items-center justify-center p-2.5 rounded-full -ml-2.5"
+        :class="Read ? 'hover:bg-gray-200' : 'hover:bg-gray-100'">
+        <Icon :icon="Star ? 'mdi:star' : 'mdi:star-outline'" style="font-size: 1.25rem;"
+          :style="Star ? 'color:#f3b400;' : (hovered ? 'color: #5F6368;' : 'color:#BFBFBF;')" />
       </div>
 
     </div>
-    <p class="truncate font-medium w-32 pr-4 flex-shrink-0">Kevin powell</p>
+    <p class="truncate  w-32 pr-4 flex-shrink-0" :class="Read ? 'font-thin text-gray-600' : 'font-medium'">{{ Sender }}
+    </p>
     <p class="truncate font-light flex-grow text-gray-500 ">
-      <span class="font-medium text-black pr-2">this is the message title</span>
+      <span class="text-black pr-2" :class="Read ? 'font-thin text-gray-600' : 'font-medium '">{{ Subject }}</span>
       <span>- </span>
-      Lorem, ipsum dolor sit
-      amet consectetur adipisicing elit. Ea optio porro inventore temporibus, eos,
-      sequi vitae doloremque quibusdam impedit eligendi corrupti possimus quasi. Cupiditate ratione dolorum
-      magnam quaerat repellat dignissimos.
+      {{ Body }}
     </p>
     <div class="justify-end mr-1 ml-3" :class="hovered ? 'w-48' : 'min-w-14'">
       <div v-if="hovered" class="flex items-center justify-end gap-1 ">
-        <div class="flex  items-center justify-center p-2.5 rounded-full hover:bg-gray-100 ">
+        <div @click="toggleState('Archive', Archive)" class="flex  items-center justify-center p-2.5 rounded-full"
+          :class="Read ? 'hover:bg-gray-200' : 'hover:bg-gray-100'">
           <Icon icon="mdi:archive-arrow-down-outline" style="color: #5F6368; font-size: 1.25rem;" />
         </div>
-        <div class="flex  items-center justify-center p-2.5 rounded-full hover:bg-gray-100 ">
+        <div @click="gmailStore.deleteMessage(message_id)" class="flex  items-center justify-center p-2.5 rounded-full "
+          :class="Read ? 'hover:bg-gray-200' : 'hover:bg-gray-100'">
           <Icon icon="mdi:trash-can-outline" style="color: #5F6368; font-size: 1.25rem;" />
         </div>
-        <div class="flex  items-center justify-center p-2.5 rounded-full hover:bg-gray-100 ">
-          <Icon icon="mdi:email-open-outline" style="color: #5F6368; font-size: 1.25rem;" />
+        <div @click="toggleState('Read', Read)" class="flex  items-center justify-center p-2.5 rounded-full "
+          :class="Read ? 'hover:bg-gray-200' : 'hover:bg-gray-100'">
+          <Icon :icon="Read ? 'mdi:email-check' : 'mdi:email-open-outline'"
+            style="color: #5F6368; font-size: 1.25rem;" />
         </div>
-        <div class="flex  items-center justify-center p-2.5 rounded-full hover:bg-gray-100 ">
+        <div @click="toggleState('Snooze', Snooze)" class="flex  items-center justify-center p-2.5 rounded-full  "
+          :class="Read ? 'hover:bg-gray-200' : 'hover:bg-gray-100'">
           <Icon icon="mdi:clock-outline" style="color: #5F6368; font-size: 1.25rem;" />
         </div>
       </div>
-      <p v-else class="font-medium text-xs text-end">May 19</p>
+      <p v-else class=" text-xs text-end" :class="Read ? 'font-thin text-gray-600' : 'font-medium '">{{ Date }}
+      </p>
     </div>
   </div>
+
+  <!-- <div @click="toggleRead" class="bg-red-500 p-4">Click here : {{ props.mprop.message.Read }} </div> -->
+
 </template>
 
 <script setup>
 import { Icon } from '@iconify/vue';
-import { ref } from 'vue';
+import { ref, toRef, onMounted, toRefs, computed } from 'vue';
+import { useGmailStore } from '@/stores/gmail'
+import { storeToRefs } from 'pinia';
+import { addDoc, deleteDoc, updateDoc, doc, collection, onSnapshot, where } from 'firebase/firestore';
+import { db } from '../Backend/Firebase'
+const gmailStore = useGmailStore()
+
+// const { markasRead, markasStarred, deleteMessage } = gmailStore
+const scrolling = ref(false)
 const hovered = ref(false)
+
+const props = defineProps(['mprop']);
+const message_id = ref(props.mprop.id)
+const { Body, Subject } = toRefs(props.mprop.message.Content);
+const { Date, Read, Recipient, Sender, Status } = toRefs(props.mprop.message);
+const { Archive, Snooze, Star } = toRefs(props.mprop.message.Status);
+
+console.log("props.mprop.message", props.mprop.message)
+
+
+// Optimistic Update state ( General Solution ) :
+const toggleState = async (property, value) => {
+  // console.log("Star :", Star.value)
+  const propertyUpdate = ref(value)
+  const propertyName = (property === "Read") ? property : `Status.${property}`
+
+  if (property === 'Read') Read.value = !Read.value
+  else {
+    Status.value[property] = !Status.value[property]
+  }
+
+  try {
+    await updateDoc(doc(collection(db, "messages"), message_id.value), {
+      [propertyName]: !propertyUpdate.value
+    })
+    console.log("Document updated successfully", Star.value);
+  } catch (error) {
+    console.log("props.mprop.message.Star :", Star.value)
+    console.error("Error updating document:", error);
+
+    if (property === 'Read') Read.value = !Read.value
+    else {
+      Status.value[property] = !Status.value[property]
+    }
+  }
+}
 </script>
-
-
-<!-- Note: I used padding of icons to set the height of the cell of message in list , when padding of icons is removed the cell height will shrink -->
-<!-- <div class="flex gap-1 items-center justify-center p-2.5 rounded-full hover:bg-gray-100 "></div> -->

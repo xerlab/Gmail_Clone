@@ -41,13 +41,31 @@
   <!-- Mesages list -->
   <div class="w-full mt-12 text-sm">
     <!-- message item -->
-    <message v-for="x in 30" />
+    <message v-if="loaded" v-for="xmessage in MessageList" :key="xmessage.id" :mprop="xmessage" />
+    <div v-else class="bg-red-400 p-4">loading...</div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { Icon } from '@iconify/vue';
 import message from '../components/message.vue'
+import { useGmailStore } from '@/stores/gmail'
+import { storeToRefs } from 'pinia';
+const isloaded = ref(false)
+
+// const loaded = ref(false)
+
+const gmailStore = useGmailStore()
+const { MessageList, loaded } = storeToRefs(gmailStore)
+const { getMailsByRecipient } = gmailStore
+
 const scrolling = ref(false)
+
+onMounted(() => {
+  getMailsByRecipient()
+  console.log("mounted")
+})
+
+
 </script>
